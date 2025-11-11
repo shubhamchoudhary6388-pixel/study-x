@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X: AI Study Assistant & Mind Refreshers</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Phosphor Icons for easy-to-use modern icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-indigo': '#4f46e5',
+                        'secondary-green': '#10b981',
+                        'reaction-red': '#ef4444',
+                        'memory-yellow': '#facc15',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+
+        /* General Loading Spinner */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4f46e5;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Sequence Memory Grid Styles */
+        #memory-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 8px;
+            width: 100%;
+            aspect-ratio: 1 / 1; 
+            max-width: 300px;
+            margin: 0 auto;
+            padding: 8px;
+            border-radius: 12px;
+            background-color: #e5e7eb; /* Gray-200 */
+        }
+        .memory-cell {
+            background-color: #6b7280; /* Gray-500 */
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.1s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .memory-cell.active {
+            background-color: #facc15; /* Memory Yellow */
+        }
+
+        /* Mobile specific text alignment fix for game headers */
+        .game-title {
+            font-size: 1.5rem; /* 2xl */
+            font-weight: 700;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8">
+
+    <header class="text-center mb-6">
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-900 flex items-center justify-center space-x-2">
+            <i class="ph-brain-fill ph-fill text-primary-indigo"></i>
+            <span>X: Study Hub</span>
+        </h1>
+        <p class="text-gray-500 mt-2 text-lg">Your AI Study Assistant & Mind Refreshers.</p>
+    </header>
+
+    <!-- Main Tab Navigation -->
+    <div class="max-w-4xl mx-auto mb-6 flex rounded-xl p-1 bg-white shadow-lg w-full">
+        <button id="tab-assistant" onclick="switchTab('assistant')" class="flex-1 py-3 text-center text-sm font-semibold rounded-lg transition duration-200 bg-primary-indigo text-white shadow-md">
+            <i class="ph-lightbulb-filament-fill mr-1 sm:mr-2"></i>AI Assistant X
+        </button>
+        <button id="tab-game" onclick="switchTab('game')" class="flex-1 py-3 text-center text-sm font-semibold rounded-lg transition duration-200 text-gray-600 hover:bg-gray-100">
+            <i class="ph-game-controller-fill mr-1 sm:mr-2"></i>Mind Refreshers
+        </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="max-w-4xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-2xl w-full">
+
+        <!-- AI Assistant Section -->
+        <section id="assistant-section" class="tab-content">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center">
+                <i class="ph-book-open-text-fill text-secondary-green mr-2"></i>Problem Solver & Tutor
+            </h2>
+
+            <div class="mb-4">
+                <textarea id="assistant-prompt"
+                          class="w-full p-4 border border-gray-300 rounded-lg focus:ring-primary-indigo focus:border-primary-indigo transition resize-none"
+                          rows="4"
+                          placeholder="Ask a question, request a complex math solution, or describe the image you uploaded (e.g., 'What is this structure?' or 'Solve this equation')."></textarea>
+            </div>
+
+            <!-- Image Upload and Preview -->
+            <div class="flex items-center space-x-4 mb-4">
+                <label for="image-upload" class="flex-shrink-0 bg-secondary-green text-white py-2 px-4 rounded-xl font-bold hover:bg-emerald-600 transition cursor-pointer text-sm shadow-md">
+                    <i class="ph-image-fill mr-2"></i>Upload Image
+                </label>
+                <input type="file" id="image-upload" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                
+                <div id="image-preview-container" class="hidden flex items-center p-2 bg-gray-100 rounded-lg border border-gray-300 w-full">
+                    <img id="image-preview" class="h-10 w-10 object-cover rounded-md mr-3" alt="Image Preview">
+                    <span id="image-filename" class="text-sm text-gray-600 truncate flex-1"></span>
+                    <button onclick="clearImage()" class="text-red-500 hover:text-red-700 p-1 rounded-full transition">
+                        <i class="ph-x-circle-fill text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button id="generate-button"
+                    class="w-full bg-primary-indigo text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition flex items-center justify-center disabled:opacity-50"
+                    onclick="callAssistant()">
+                <i class="ph-sparkle-fill mr-2 text-xl"></i>
+                <span>Get Study Help from X</span>
+            </button>
+            
+            <!-- NEW RESET BUTTON ADDED HERE -->
+            <button id="reset-button"
+                    class="w-full mt-3 bg-gray-200 text-gray-700 py-2 rounded-xl font-bold hover:bg-gray-300 transition flex items-center justify-center"
+                    onclick="resetAssistantWorkspace()">
+                <i class="ph-arrow-counter-clockwise-fill mr-2"></i>
+                <span>New Query / Clear Workspace</span>
+            </button>
+
+            <!-- Loading Indicator -->
+            <div id="loading-indicator" class="hidden mt-6 flex items-center justify-center text-primary-indigo">
+                <div class="spinner mr-3"></div>
+                <span class="font-semibold">X is thinking...</span>
+            </div>
+
+            <!-- AI Response Area -->
+            <div id="assistant-response" class="mt-8 border-t pt-6">
+                <h3 class="text-xl font-bold text-gray-700 mb-4">Response:</h3>
+                <div id="response-content" class="min-h-16 bg-gray-50 p-4 rounded-lg border border-gray-200 text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    Welcome! Ask AI Assistant X any study-related question, or upload an image for analysis. I use Google Search grounding to provide accurate, up-to-date answers.
+                </div>
+                <div id="citation-container" class="mt-4 text-sm text-gray-500"></div>
+            </div>
+        </section>
+
+        <!-- Game Hub Section -->
+        <section id="game-section" class="tab-content hidden">
+            
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2 flex items-center">
+                <i class="ph-game-controller-fill text-primary-indigo mr-2"></i>Mind Refreshers (Unlimited Levels)
+            </h2>
+
+            <!-- Game Sub-Navigation (Mobile Friendly Flex-Wrap) -->
+            <div class="flex flex-wrap justify-center gap-2 mb-6 text-sm">
+                <button id="game-tab-math" onclick="switchGame('math')" class="game-tab bg-primary-indigo text-white px-3 py-1.5 rounded-full font-semibold">
+                    <i class="ph-calculator-fill mr-1"></i>Math Logic (Analytical)
+                </button>
+                <button id="game-tab-reaction" onclick="switchGame('reaction')" class="game-tab bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full font-semibold hover:bg-gray-300">
+                    <i class="ph-lightning-fill mr-1"></i>Reaction Speed (Fast-Paced)
+                </button>
+                <button id="game-tab-memory" onclick="switchGame('memory')" class="game-tab bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full font-semibold hover:bg-gray-300">
+                    <i class="ph-keyhole-fill mr-1"></i>Sequence Memory (Strategic)
+                </button>
+            </div>
+
+            <!-- --- GAME 1: MATH LOGIC CHALLENGE (Analytical Vibe) --- -->
+            <div id="math-game" class="game-content text-center">
+                <p class="game-title text-2xl font-bold text-primary-indigo mb-4">Math Logic Challenge</p>
+                <div class="max-w-xs mx-auto p-6 bg-gray-50 rounded-xl shadow-lg border-2 border-primary-indigo">
+                    <p class="text-xl font-medium text-gray-600 mb-3">Level: <span id="math-level" class="text-3xl font-extrabold text-primary-indigo">1</span></p>
+                    <p id="math-question" class="text-4xl font-bold text-gray-900 mb-6">?</p>
+                    <input type="number" id="math-answer" placeholder="Your Answer"
+                           class="w-full p-3 text-center text-xl border-2 border-gray-300 rounded-lg focus:border-secondary-green focus:ring-secondary-green mb-4">
+                    <button onclick="checkMathAnswer()"
+                            class="w-full bg-secondary-green text-white py-3 rounded-xl font-bold hover:bg-emerald-600 transition shadow-md">
+                        Submit Answer
+                    </button>
+                </div>
+                <p id="math-feedback" class="mt-4 text-lg font-semibold min-h-6"></p>
+            </div>
+
+            <!-- --- GAME 2: REACTION SPEED TEST (Fast-Paced Vibe) --- -->
+            <div id="reaction-game" class="game-content hidden text-center">
+                <p class="game-title text-2xl font-bold text-reaction-red mb-4">Reaction Speed Test</p>
+                <div class="max-w-xs mx-auto p-6 bg-gray-50 rounded-xl shadow-lg border-2 border-reaction-red">
+                    <p class="text-xl font-medium text-gray-600 mb-3">Goal: Click when the color is <span class="text-secondary-green font-bold">GREEN</span></p>
+                    <p class="text-lg font-medium text-gray-700 mb-4">Fastest Time: <span id="reaction-fastest" class="text-reaction-red font-bold">--</span> ms</p>
+                    <button id="reaction-button" onclick="handleReactionClick()"
+                            class="w-full h-32 text-2xl font-bold text-white rounded-xl transition duration-500 ease-in-out"
+                            style="background-color: #3b82f6;"> <!-- Blue -->
+                        Wait for Green
+                    </button>
+                </div>
+                <p id="reaction-feedback" class="mt-4 text-lg font-semibold min-h-6"></p>
+            </div>
+
+            <!-- --- GAME 3: SEQUENCE MEMORY (Strategic Vibe) --- -->
+            <div id="memory-game" class="game-content hidden text-center">
+                <p class="game-title text-2xl font-bold text-memory-yellow mb-4">Sequence Memory Game</p>
+                <div class="max-w-xs mx-auto p-6 bg-gray-50 rounded-xl shadow-lg border-2 border-memory-yellow">
+                    <p class="text-xl font-medium text-gray-600 mb-3">Sequence Length: <span id="memory-level" class="text-3xl font-extrabold text-memory-yellow">3</span></p>
+                    <div id="memory-grid">
+                        <div class="memory-cell" data-index="0"></div>
+                        <div class="memory-cell" data-index="1"></div>
+                        <div class="memory-cell" data-index="2"></div>
+                        <div class="memory-cell" data-index="3"></div>
+                        <div class="memory-cell" data-index="4"></div>
+                        <div class="memory-cell" data-index="5"></div>
+                        <div class="memory-cell" data-index="6"></div>
+                        <div class="memory-cell" data-index="7"></div>
+                        <div class="memory-cell" data-index="8"></div>
+                    </div>
+                    <button id="memory-start" onclick="startMemoryGame()"
+                            class="mt-6 w-full bg-memory-yellow text-gray-900 py-3 rounded-xl font-bold hover:bg-yellow-400 transition shadow-md">
+                        Start Sequence
+                    </button>
+                </div>
+                <p id="memory-feedback" class="mt-4 text-lg font-semibold min-h-6"></p>
+            </div>
+
+        </section>
+
+    </main>
+
+    <script type="module">
+        // --- Tab Switching Logic ---
+        function switchTab(tabName) {
+            const assistantSection = document.getElementById('assistant-section');
+            const gameSection = document.getElementById('game-section');
+            const tabAssistant = document.getElementById('tab-assistant');
+            const tabGame = document.getElementById('tab-game');
+
+            const isAssistant = tabName === 'assistant';
+
+            assistantSection.classList.toggle('hidden', !isAssistant);
+            gameSection.classList.toggle('hidden', isAssistant);
+
+            tabAssistant.classList.toggle('bg-primary-indigo', isAssistant);
+            tabAssistant.classList.toggle('text-white', isAssistant);
+            tabAssistant.classList.toggle('shadow-md', isAssistant);
+            tabAssistant.classList.toggle('text-gray-600', !isAssistant);
+            tabAssistant.classList.toggle('hover:bg-gray-100', !isAssistant);
+
+            tabGame.classList.toggle('bg-primary-indigo', !isAssistant);
+            tabGame.classList.toggle('text-white', !isAssistant);
+            tabGame.classList.toggle('shadow-md', !isAssistant);
+            tabGame.classList.toggle('text-gray-600', isAssistant);
+            tabGame.classList.toggle('hover:bg-gray-100', isAssistant);
+            
+            // If switching to game tab, ensure one game is visible
+            if (!isAssistant) {
+                // Ensure the active game's tab styling is applied when switching back to 'game'
+                const activeGame = document.querySelector('.game-content:not(.hidden)').id.replace('-game', '');
+                switchGame(activeGame || 'math'); // Default to math game
+            }
+        }
+        window.switchTab = switchTab;
+
+        function switchGame(gameName) {
+            document.querySelectorAll('.game-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`${gameName}-game`).classList.remove('hidden');
+
+            document.querySelectorAll('.game-tab').forEach(btn => {
+                const isActive = btn.id === `game-tab-${gameName}`;
+                btn.classList.toggle('bg-primary-indigo', isActive);
+                btn.classList.toggle('text-white', isActive);
+                btn.classList.toggle('bg-gray-200', !isActive);
+                btn.classList.toggle('text-gray-700', !isActive);
+            });
+        }
+        window.switchGame = switchGame;
+
+
+        // --- AI Assistant X Logic (Gemini API) ---
+        const ASSISTANT_MODEL = 'gemini-2.5-flash-preview-09-2025';
+        const apiKey = "AIzaSyD4t9AsgqNf0XPBdql1S2ueXpdmh4cas6U"; 
+
+        const promptInput = document.getElementById('assistant-prompt');
+        const generateButton = document.getElementById('generate-button');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const responseContent = document.getElementById('response-content');
+        const citationContainer = document.getElementById('citation-container');
+
+        // NEW ELEMENTS
+        const imageUploadInput = document.getElementById('image-upload');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const imageFilenameEl = document.getElementById('image-filename');
+
+        let base64Image = null;
+        let mimeType = null;
+
+
+        const systemPrompt = "You are X, a helpful and detailed study assistant and problem solver for students. Provide clear, accurate, and easy-to-understand explanations and solutions. Your tone should be encouraging and educational. Always provide a clear explanation for your answer.";
+
+        async function fetchWithRetry(url, options, maxRetries = 3) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status !== 429 && response.ok) {
+                        return response;
+                    } else if (response.status === 429 && i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw new Error(`API call failed with status: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    if (i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+        }
+        
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            if (!file.type.startsWith('image/')) {
+                // Using console.error instead of alert() as per rules
+                console.error("Invalid file type: Please upload a valid image file.");
+                clearImage();
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const base64String = reader.result;
+                // Format: data:image/jpeg;base64,.....
+                const parts = base64String.split(',');
+                mimeType = parts[0].split(':')[1].split(';')[0];
+                base64Image = parts[1];
+
+                imagePreview.src = base64String;
+                imageFilenameEl.textContent = file.name;
+                imagePreviewContainer.classList.remove('hidden');
+                promptInput.focus();
+            };
+            reader.readAsDataURL(file);
+        }
+        window.handleImageUpload = handleImageUpload;
+
+        function clearImage() {
+            base64Image = null;
+            mimeType = null;
+            imageUploadInput.value = '';
+            imagePreview.src = '';
+            imageFilenameEl.textContent = '';
+            imagePreviewContainer.classList.add('hidden');
+        }
+        window.clearImage = clearImage;
+        
+        // Function to clear the entire AI Assistant workspace (the "refresh" the user asked for)
+        function resetAssistantWorkspace() {
+            promptInput.value = '';
+            // Reset to the initial welcome message
+            responseContent.textContent = 'Welcome! Ask AI Assistant X any study-related question, or upload an image for analysis. I use Google Search grounding to provide accurate, up-to-date answers.';
+            citationContainer.innerHTML = '';
+            clearImage(); // Clear any existing image
+            promptInput.focus();
+        }
+        window.resetAssistantWorkspace = resetAssistantWorkspace;
+
+        async function callAssistant() {
+            const userQuery = promptInput.value.trim();
+            
+            if (!userQuery && !base64Image) {
+                responseContent.textContent = "Please enter a question or upload an image to get help.";
+                return;
+            }
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${ASSISTANT_MODEL}:generateContent?key=${apiKey}`;
+
+            // Construct the content parts dynamically
+            const parts = [];
+
+            if (userQuery) {
+                parts.push({ text: userQuery });
+            }
+
+            if (base64Image && mimeType) {
+                parts.push({
+                    inlineData: {
+                        mimeType: mimeType,
+                        data: base64Image
+                    }
+                });
+            }
+
+            const payload = {
+                contents: [{ role: "user", parts: parts }],
+                tools: [{ "google_search": {} }], 
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            generateButton.disabled = true;
+            loadingIndicator.classList.remove('hidden');
+            responseContent.textContent = '';
+            citationContainer.innerHTML = '';
+
+            try {
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const text = candidate.content.parts[0].text;
+                    responseContent.textContent = text;
+
+                    let sources = [];
+                    const groundingMetadata = candidate.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                            .map(attribution => ({
+                                uri: attribution.web?.uri,
+                                title: attribution.web?.title,
+                            }))
+                            .filter(source => source.uri && source.title);
+                    }
+
+                    if (sources.length > 0) {
+                        const uniqueSources = Array.from(new Set(sources.map(s => s.uri)))
+                            .map(uri => sources.find(s => s.uri === uri));
+
+                        const sourceHtml = `<strong>Sources:</strong> ${uniqueSources.map((s, index) =>
+                            `<a href="${s.uri}" target="_blank" class="text-primary-indigo hover:underline">${s.title}</a>`
+                        ).join(' | ')}`;
+                        citationContainer.innerHTML = sourceHtml;
+                    }
+
+                } else {
+                    responseContent.textContent = "Sorry, I couldn't generate a helpful response. Please try rephrasing your question.";
+                    console.error("API response error:", result);
+                }
+
+            } catch (error) {
+                responseContent.textContent = `An error occurred: ${error.message}. Please check your connection or try again later.`;
+                console.error("Fetch error:", error);
+            } finally {
+                generateButton.disabled = false;
+                loadingIndicator.classList.add('hidden');
+                clearImage(); // Clear image after successful processing
+            }
+        }
+        window.callAssistant = callAssistant;
+
+
+        // --- GAME 1: MATH LOGIC CHALLENGE (ANALYTICAL) ---
+        let mathLevel = 1;
+        let mathCorrectAnswer = 0;
+
+        const mathLevelEl = document.getElementById('math-level');
+        const mathQuestionEl = document.getElementById('math-question');
+        const mathAnswerEl = document.getElementById('math-answer');
+        const mathFeedbackEl = document.getElementById('math-feedback');
+
+        function generateMathProblem(level) {
+            // Increase complexity with level
+            let maxNum = 10 + (level * 2); 
+            let num1 = Math.floor(Math.random() * maxNum) + 1;
+            let num2 = Math.floor(Math.random() * (maxNum / 2)) + 1;
+            let operator = Math.random() < 0.5 ? '+' : '-';
+
+            if (operator === '-' && num2 > num1) {
+                // Ensure positive result for subtraction
+                [num1, num2] = [num2, num1];
+            }
+
+            const question = `${num1} ${operator} ${num2} = ?`;
+            mathCorrectAnswer = (operator === '+') ? (num1 + num2) : (num1 - num2);
+            
+            mathQuestionEl.textContent = question;
+            mathLevelEl.textContent = level;
+            mathAnswerEl.value = '';
+            mathFeedbackEl.textContent = '';
+        }
+
+        function checkMathAnswer() {
+            const userAnswer = parseInt(mathAnswerEl.value.trim());
+
+            if (isNaN(userAnswer)) {
+                mathFeedbackEl.textContent = "Please enter a valid number.";
+                return;
+            }
+
+            if (userAnswer === mathCorrectAnswer) {
+                mathFeedbackEl.textContent = `Correct! Advancing to Level ${mathLevel + 1}.`;
+                mathFeedbackEl.classList.remove('text-red-500');
+                mathFeedbackEl.classList.add('text-secondary-green');
+                mathLevel++;
+                setTimeout(() => generateMathProblem(mathLevel), 1000);
+            } else {
+                mathFeedbackEl.textContent = `Incorrect. Try again or enter 0 to reset.`;
+                mathFeedbackEl.classList.remove('text-secondary-green');
+                mathFeedbackEl.classList.add('text-red-500');
+                if (userAnswer === 0) {
+                    mathLevel = 1;
+                    mathFeedbackEl.textContent = `Resetting to Level 1.`;
+                    setTimeout(() => generateMathProblem(mathLevel), 1000);
+                }
+            }
+        }
+        window.checkMathAnswer = checkMathAnswer;
+        
+        // --- GAME 2: REACTION SPEED TEST (FAST-PACED) ---
+        let reactionState = 'wait'; // 'wait', 'ready', 'test'
+        let reactionTimeout;
+        let reactionFastestTime = Infinity;
+        let reactionStartTime;
+
+        const reactionButton = document.getElementById('reaction-button');
+        const reactionFeedbackEl = document.getElementById('reaction-feedback');
+        const reactionFastestEl = document.getElementById('reaction-fastest');
+
+        function startReactionGame() {
+            reactionState = 'wait';
+            reactionButton.textContent = "Wait for Green";
+            reactionButton.style.backgroundColor = '#3b82f6'; // Blue
+            reactionFeedbackEl.textContent = "";
+
+            const randomDelay = Math.random() * 3000 + 1000; // 1 to 4 seconds
+
+            reactionTimeout = setTimeout(() => {
+                reactionState = 'test';
+                reactionButton.textContent = "CLICK NOW!";
+                reactionButton.style.backgroundColor = '#10b981'; // Green
+                reactionStartTime = performance.now();
+            }, randomDelay);
+
+            reactionState = 'ready';
+        }
+
+        function handleReactionClick() {
+            if (reactionState === 'wait') {
+                // Too fast, clicked before the random delay timer started
+                clearTimeout(reactionTimeout);
+                reactionFeedbackEl.textContent = "Too soon! Click only when it's green. Restarting...";
+                reactionFeedbackEl.classList.remove('text-secondary-green');
+                reactionFeedbackEl.classList.add('text-red-500');
+                reactionButton.textContent = "Too Soon!";
+                setTimeout(startReactionGame, 1500);
+                
+            } else if (reactionState === 'ready') {
+                // Clicked before the timeout finished, but after initial state.
+                 clearTimeout(reactionTimeout);
+                 reactionFeedbackEl.textContent = "Too soon! Click only when it's green. Restarting...";
+                 reactionFeedbackEl.classList.remove('text-secondary-green');
+                 reactionFeedbackEl.classList.add('text-red-500');
+                 reactionButton.textContent = "Too Soon!";
+                 setTimeout(startReactionGame, 1500);
+
+            } else if (reactionState === 'test') {
+                // Correct click
+                const endTime = performance.now();
+                const reactionTime = Math.round(endTime - reactionStartTime);
+                
+                if (reactionTime < reactionFastestTime) {
+                    reactionFastestTime = reactionTime;
+                    reactionFastestEl.textContent = `${reactionTime} (NEW RECORD!)`;
+                } else {
+                    reactionFastestEl.textContent = `${reactionFastestTime} ms`;
+                }
+
+                reactionFeedbackEl.textContent = `Success! Your time was ${reactionTime} ms. New round starting...`;
+                reactionFeedbackEl.classList.remove('text-red-500');
+                reactionFeedbackEl.classList.add('text-secondary-green');
+                reactionButton.style.backgroundColor = '#4f46e5'; // Indigo
+                reactionButton.textContent = "Analyzing Time...";
+                setTimeout(startReactionGame, 1500);
+            }
+        }
+        window.handleReactionClick = handleReactionClick;
+
+
+        // --- GAME 3: SEQUENCE MEMORY (STRATEGIC) ---
+        let memoryLevel = 3;
+        let memorySequence = [];
+        let memoryUserInput = [];
+        let isFlashing = false;
+        let isInputting = false;
+
+        const memoryLevelEl = document.getElementById('memory-level');
+        const memoryCells = Array.from(document.querySelectorAll('.memory-cell'));
+        const memoryStartButton = document.getElementById('memory-start');
+        const memoryFeedbackEl = document.getElementById('memory-feedback');
+
+        memoryCells.forEach(cell => {
+            cell.onclick = () => handleMemoryClick(cell);
+        });
+
+        function resetMemoryGame() {
+            memoryLevel = 3;
+            memorySequence = [];
+            memoryUserInput = [];
+            memoryLevelEl.textContent = memoryLevel;
+            memoryFeedbackEl.textContent = 'Ready to play. Try to remember the flashing sequence.';
+            memoryStartButton.disabled = false;
+            memoryCells.forEach(cell => cell.classList.remove('active'));
+        }
+
+        async function flashCell(cellIndex, duration = 300) {
+            const cell = memoryCells[cellIndex];
+            cell.classList.add('active');
+            await new Promise(resolve => setTimeout(resolve, duration));
+            cell.classList.remove('active');
+            await new Promise(resolve => setTimeout(resolve, 100)); // Short break
+        }
+
+        async function showSequence() {
+            isFlashing = true;
+            memoryStartButton.disabled = true;
+            memoryFeedbackEl.textContent = "Watch the sequence...";
+            memorySequence = [];
+            memoryUserInput = [];
+
+            // Generate sequence
+            for (let i = 0; i < memoryLevel; i++) {
+                const randomIndex = Math.floor(Math.random() * 9);
+                memorySequence.push(randomIndex);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500)); 
+
+            // Flash sequence
+            for (const index of memorySequence) {
+                await flashCell(index, 350);
+            }
+
+            isFlashing = false;
+            isInputting = true;
+            memoryFeedbackEl.textContent = "Now, repeat the sequence!";
+        }
+        
+        function handleMemoryClick(cell) {
+            if (!isInputting) return;
+
+            const index = parseInt(cell.getAttribute('data-index'));
+            
+            // Temporary flash feedback on click
+            flashCell(index, 100);
+
+            const expectedIndex = memorySequence[memoryUserInput.length];
+            
+            if (index === expectedIndex) {
+                // Correct step
+                memoryUserInput.push(index);
+
+                if (memoryUserInput.length === memorySequence.length) {
+                    // Sequence complete!
+                    isInputting = false;
+                    memoryFeedbackEl.textContent = `Success! Level ${memoryLevel} completed.`;
+                    memoryFeedbackEl.classList.remove('text-red-500');
+                    memoryFeedbackEl.classList.add('text-secondary-green');
+                    memoryLevel++;
+                    memoryLevelEl.textContent = memoryLevel;
+                    setTimeout(showSequence, 1500); 
+                }
+            } else {
+                // Incorrect step
+                isInputting = false;
+                memoryFeedbackEl.textContent = `Wrong cell! Game over. Final sequence length: ${memoryLevel - 1}.`;
+                memoryFeedbackEl.classList.remove('text-secondary-green');
+                memoryFeedbackEl.classList.add('text-red-500');
+                
+                // Show the final, full correct sequence for learning
+                setTimeout(async () => {
+                    memoryFeedbackEl.textContent = "Here was the correct sequence...";
+                    for (const correctIndex of memorySequence) {
+                        await flashCell(correctIndex, 300);
+                    }
+                    setTimeout(resetMemoryGame, 2000); 
+                }, 1000);
+            }
+        }
+
+        function startMemoryGame() {
+            memoryLevel = 3;
+            memoryLevelEl.textContent = memoryLevel;
+            showSequence();
+        }
+        window.startMemoryGame = startMemoryGame;
+
+
+        // --- Initialization ---
+        window.onload = function() {
+            // Default to Assistant tab and start the math game (the first game)
+            switchTab('assistant');
+            generateMathProblem(1); 
+            
+            // Start the reaction game loop when the page loads (it runs in the background)
+            startReactionGame(); 
+        }
+
+    </script>
+</body>
+</html>
